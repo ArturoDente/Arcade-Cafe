@@ -177,36 +177,36 @@ function MainScreen({ session }) {
     return () => supabase.removeChannel(associatoChannel);
   }, [session]);
 
-  // --- NUOVA GESTIONE SCANNER ---
   useEffect(() => {
     if (showScanner) {
       const scanner = new Html5QrcodeScanner(
-        "qr-reader", // ID del div dove verrà renderizzato lo scanner
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        false, // verbose
+        "qr-reader",
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          // Aggiungiamo una configurazione esplicita per la fotocamera posteriore
+          // Questa è la correzione più comune per lo schermo nero su mobile
+          facingMode: "environment",
+        },
+        false,
       );
 
       const onScanSuccess = (decodedText, decodedResult) => {
-        scanner.clear(); // Ferma lo scanner e la camera
+        scanner.clear();
         handleBarCodeScanned(decodedText);
       };
 
       const onScanFailure = (error) => {
-        // Gestisce gli errori di scansione, possiamo ignorarli per non essere troppo invasivi
-        // console.warn(`Code scan error = ${error}`);
+        // Possiamo ignorare gli errori di scansione (es. QR non trovato)
       };
 
       scanner.render(onScanSuccess, onScanFailure);
 
-      // Funzione di pulizia per quando il componente viene smontato
       return () => {
-        // Controlla se lo scanner esiste e sta scansionando prima di pulirlo
-        if (scanner && scanner.getState() === 2) {
-          // 2 = SCANNING
-          scanner.clear().catch((error) => {
-            console.error("Failed to clear scanner on cleanup.", error);
-          });
-        }
+        // Funzione di pulizia per fermare la fotocamera
+        scanner.clear().catch((error) => {
+          // Ignora l'errore se lo scanner è già stato pulito
+        });
       };
     }
   }, [showScanner]);
@@ -306,7 +306,7 @@ function MainScreen({ session }) {
   };
 
   const handleBarCodeScanned = async (decodedText) => {
-    setShowScanner(false); // Nasconde l'interfaccia dello scanner
+    setShowScanner(false);
     const cabinatoId = parseInt(decodedText, 10);
     if (isNaN(cabinatoId)) {
       setNotification({ message: "QR non valido.", type: "error" });
