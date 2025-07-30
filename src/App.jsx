@@ -69,7 +69,7 @@ function AuthScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4 relative">
       <Notification
         message={notification.message}
         type={notification.type}
@@ -108,6 +108,7 @@ function AuthScreen() {
           {loading ? "Registrazione..." : "Registrati"}
         </button>
       </div>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.2</p>
     </div>
   );
 }
@@ -184,8 +185,6 @@ function MainScreen({ session }) {
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
-          // Aggiungiamo una configurazione esplicita per la fotocamera posteriore
-          // Questa è la correzione più comune per lo schermo nero su mobile
           facingMode: "environment",
         },
         false,
@@ -196,17 +195,12 @@ function MainScreen({ session }) {
         handleBarCodeScanned(decodedText);
       };
 
-      const onScanFailure = (error) => {
-        // Possiamo ignorare gli errori di scansione (es. QR non trovato)
-      };
+      const onScanFailure = (error) => {};
 
       scanner.render(onScanSuccess, onScanFailure);
 
       return () => {
-        // Funzione di pulizia per fermare la fotocamera
-        scanner.clear().catch((error) => {
-          // Ignora l'errore se lo scanner è già stato pulito
-        });
+        scanner.clear().catch((error) => {});
       };
     }
   }, [showScanner]);
@@ -343,6 +337,16 @@ function MainScreen({ session }) {
     }
   };
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setNotification({
+        message: `Logout fallito: ${error.message}`,
+        type: "error",
+      });
+    }
+  };
+
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600)
       .toString()
@@ -378,7 +382,7 @@ function MainScreen({ session }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 flex flex-col items-center">
+    <div className="min-h-screen bg-gray-900 text-white p-4 flex flex-col items-center relative">
       <Notification
         message={notification.message}
         type={notification.type}
@@ -438,11 +442,12 @@ function MainScreen({ session }) {
         </div>
       )}
       <button
-        onClick={() => supabase.auth.signOut()}
+        onClick={handleLogout}
         className="mt-auto text-yellow-400 hover:text-white"
       >
         Logout
       </button>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.2</p>
     </div>
   );
 }
