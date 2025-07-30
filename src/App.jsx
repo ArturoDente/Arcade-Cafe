@@ -108,7 +108,7 @@ function AuthScreen() {
           {loading ? "Registrazione..." : "Registrati"}
         </button>
       </div>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.2</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.3</p>
     </div>
   );
 }
@@ -124,6 +124,7 @@ function MainScreen({ session }) {
 
   const timerRef = useRef(null);
   const tokenConsumptionRef = useRef(null);
+  const scannerRef = useRef(null); // Riferimento per l'istanza dello scanner
 
   const clearNotification = () => setNotification({ message: "", type: "" });
 
@@ -178,32 +179,43 @@ function MainScreen({ session }) {
     return () => supabase.removeChannel(associatoChannel);
   }, [session]);
 
+  // Effetto per gestire il ciclo di vita dello scanner
   useEffect(() => {
     if (showScanner) {
-      const scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          facingMode: "environment",
-        },
-        false,
-      );
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        facingMode: "environment",
+      };
 
       const onScanSuccess = (decodedText, decodedResult) => {
-        scanner.clear();
+        // Non fermare lo scanner qui, verrà gestito da handleBarCodeScanned
         handleBarCodeScanned(decodedText);
       };
 
-      const onScanFailure = (error) => {};
-
-      scanner.render(onScanSuccess, onScanFailure);
-
-      return () => {
-        scanner.clear().catch((error) => {});
+      const onScanFailure = (error) => {
+        // Ignora gli errori di scansione per non essere invasivo
       };
+
+      const html5QrcodeScanner = new Html5QrcodeScanner(
+        "qr-reader",
+        config,
+        false,
+      );
+      html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+      scannerRef.current = html5QrcodeScanner;
     }
   }, [showScanner]);
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.clear().catch((error) => {
+        console.error("Errore nella pulizia dello scanner.", error);
+      });
+      scannerRef.current = null;
+    }
+    setShowScanner(false);
+  };
 
   const fetchAssociatoData = async () => {
     setLoading(true);
@@ -300,7 +312,7 @@ function MainScreen({ session }) {
   };
 
   const handleBarCodeScanned = async (decodedText) => {
-    setShowScanner(false);
+    stopScanner(); // Ferma lo scanner e nasconde la UI
     const cabinatoId = parseInt(decodedText, 10);
     if (isNaN(cabinatoId)) {
       setNotification({ message: "QR non valido.", type: "error" });
@@ -345,6 +357,7 @@ function MainScreen({ session }) {
         type: "error",
       });
     }
+    // Il listener onAuthStateChange in App.jsx gestirà il reindirizzamento
   };
 
   const formatTime = (seconds) => {
@@ -372,7 +385,7 @@ function MainScreen({ session }) {
         <h2 className="text-white text-2xl mb-4">Inquadra il QR Code</h2>
         <div className="w-full max-w-sm" id="qr-reader"></div>
         <button
-          onClick={() => setShowScanner(false)}
+          onClick={stopScanner}
           className="mt-4 px-6 py-2 bg-red-500 text-white font-bold rounded-lg"
         >
           Annulla
@@ -447,7 +460,7 @@ function MainScreen({ session }) {
       >
         Logout
       </button>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.2</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.3</p>
     </div>
   );
 }
