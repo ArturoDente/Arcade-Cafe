@@ -108,7 +108,7 @@ function AuthScreen() {
           {loading ? "Registrazione..." : "Registrati"}
         </button>
       </div>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.4</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.5</p>
     </div>
   );
 }
@@ -186,22 +186,15 @@ function MainScreen({ session }) {
           const devices = await Html5Qrcode.getCameras();
           let cameraId = null;
           if (devices && devices.length) {
-            // Cerca esplicitamente la fotocamera posteriore
             const backCamera = devices.find((device) =>
               device.label.toLowerCase().includes("back"),
             );
-            if (backCamera) {
-              cameraId = backCamera.id;
-            } else {
-              // Altrimenti usa la prima della lista
-              cameraId = devices[0].id;
-            }
+            cameraId = backCamera ? backCamera.id : devices[0].id;
           }
 
           const config = {
             fps: 10,
             qrbox: { width: 250, height: 250 },
-            // Usa l'ID specifico se trovato
             deviceId: cameraId ? { exact: cameraId } : undefined,
           };
 
@@ -483,7 +476,7 @@ function MainScreen({ session }) {
       >
         Logout
       </button>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.4</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.5</p>
     </div>
   );
 }
@@ -491,22 +484,32 @@ function MainScreen({ session }) {
 // --- Componente Principale App ---
 export default function App() {
   const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setLoading(false);
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+        Caricamento...
+      </div>
+    );
+  }
 
   if (!session) {
     return <AuthScreen />;
   } else {
-    return <MainScreen session={session} />;
+    return <MainScreen key={session.user.id} session={session} />;
   }
 }
