@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5QrcodeScanner, Html5Qrcode } from "html5-qrcode";
 
 // --- Configurazione Supabase ---
 const supabaseUrl = "https://jtxghmwqskpwzmfrsyng.supabase.co";
@@ -108,7 +108,7 @@ function AuthScreen() {
           {loading ? "Registrazione..." : "Registrati"}
         </button>
       </div>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.3</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.4</p>
     </div>
   );
 }
@@ -124,7 +124,7 @@ function MainScreen({ session }) {
 
   const timerRef = useRef(null);
   const tokenConsumptionRef = useRef(null);
-  const scannerRef = useRef(null); // Riferimento per l'istanza dello scanner
+  const scannerRef = useRef(null);
 
   const clearNotification = () => setNotification({ message: "", type: "" });
 
@@ -179,31 +179,55 @@ function MainScreen({ session }) {
     return () => supabase.removeChannel(associatoChannel);
   }, [session]);
 
-  // Effetto per gestire il ciclo di vita dello scanner
   useEffect(() => {
     if (showScanner) {
-      const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        facingMode: "environment",
-      };
+      const startScanner = async () => {
+        try {
+          const devices = await Html5Qrcode.getCameras();
+          let cameraId = null;
+          if (devices && devices.length) {
+            // Cerca esplicitamente la fotocamera posteriore
+            const backCamera = devices.find((device) =>
+              device.label.toLowerCase().includes("back"),
+            );
+            if (backCamera) {
+              cameraId = backCamera.id;
+            } else {
+              // Altrimenti usa la prima della lista
+              cameraId = devices[0].id;
+            }
+          }
 
-      const onScanSuccess = (decodedText, decodedResult) => {
-        // Non fermare lo scanner qui, verrà gestito da handleBarCodeScanned
-        handleBarCodeScanned(decodedText);
-      };
+          const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            // Usa l'ID specifico se trovato
+            deviceId: cameraId ? { exact: cameraId } : undefined,
+          };
 
-      const onScanFailure = (error) => {
-        // Ignora gli errori di scansione per non essere invasivo
-      };
+          const onScanSuccess = (decodedText, decodedResult) => {
+            handleBarCodeScanned(decodedText);
+          };
 
-      const html5QrcodeScanner = new Html5QrcodeScanner(
-        "qr-reader",
-        config,
-        false,
-      );
-      html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-      scannerRef.current = html5QrcodeScanner;
+          const onScanFailure = (error) => {};
+
+          const html5QrcodeScanner = new Html5QrcodeScanner(
+            "qr-reader",
+            config,
+            false,
+          );
+          html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+          scannerRef.current = html5QrcodeScanner;
+        } catch (err) {
+          console.error("Errore nell'avvio dello scanner:", err);
+          setNotification({
+            message: "Impossibile avviare la fotocamera.",
+            type: "error",
+          });
+          setShowScanner(false);
+        }
+      };
+      startScanner();
     }
   }, [showScanner]);
 
@@ -312,7 +336,7 @@ function MainScreen({ session }) {
   };
 
   const handleBarCodeScanned = async (decodedText) => {
-    stopScanner(); // Ferma lo scanner e nasconde la UI
+    stopScanner();
     const cabinatoId = parseInt(decodedText, 10);
     if (isNaN(cabinatoId)) {
       setNotification({ message: "QR non valido.", type: "error" });
@@ -357,7 +381,6 @@ function MainScreen({ session }) {
         type: "error",
       });
     }
-    // Il listener onAuthStateChange in App.jsx gestirà il reindirizzamento
   };
 
   const formatTime = (seconds) => {
@@ -460,7 +483,7 @@ function MainScreen({ session }) {
       >
         Logout
       </button>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.3</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.4</p>
     </div>
   );
 }
