@@ -109,7 +109,7 @@ function AuthScreen() {
                 </button>
             </div>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.3
+                V. 1.4
             </p>
         </div>
     );
@@ -131,6 +131,7 @@ function ScannerComponent({ onScan, onCancel }) {
 
         const startScan = async () => {
             try {
+                setStatus("Ricerca fotocamere...");
                 const videoInputDevices =
                     await BrowserQRCodeReader.listVideoInputDevices();
                 if (videoInputDevices.length === 0) {
@@ -145,7 +146,7 @@ function ScannerComponent({ onScan, onCancel }) {
                     selectedDeviceId = rearCamera.deviceId;
                 }
 
-                setStatus("Scansione...");
+                setStatus("Avvio scansione...");
 
                 await codeReader.decodeFromVideoDevice(
                     selectedDeviceId,
@@ -157,9 +158,11 @@ function ScannerComponent({ onScan, onCancel }) {
                         }
                     },
                 );
+
+                setStatus("Scansione attiva");
             } catch (err) {
                 console.error("ERRORE SCANNER:", err);
-                setError(`Errore fotocamera: ${err.message}`);
+                setError(`Errore fotocamera: ${err.name} - ${err.message}`);
                 setStatus("Errore");
             }
         };
@@ -178,14 +181,16 @@ function ScannerComponent({ onScan, onCancel }) {
             <h2 className="text-white text-2xl mb-4">Inquadra il QR Code</h2>
             <div className="w-full max-w-sm bg-gray-800 flex items-center justify-center h-64 rounded-lg">
                 {status === "Errore" ? (
-                    <p className="text-red-500 text-center px-4">{error}</p>
+                    <p className="text-red-500 text-center px-4 break-words">
+                        {error}
+                    </p>
                 ) : (
                     <video
                         ref={videoRef}
-                        className={`w-full rounded-lg ${status === "Scansione..." ? "block" : "hidden"}`}
+                        className={`w-full rounded-lg ${status === "Scansione attiva" ? "block" : "hidden"}`}
                     />
                 )}
-                {status === "Inizializzazione..." && (
+                {status !== "Scansione attiva" && status !== "Errore" && (
                     <p className="text-white">{status}</p>
                 )}
             </div>
@@ -378,7 +383,6 @@ function MainScreen({ session }) {
             return;
         }
         try {
-            // CORREZIONE CRUCIALE: Controlla che i dati dell'associato siano caricati prima di procedere.
             if (!associato) {
                 throw new Error("Dati utente non ancora caricati. Riprova.");
             }
@@ -540,7 +544,7 @@ function MainScreen({ session }) {
                 Logout
             </button>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.3
+                V. 1.4
             </p>
         </div>
     );
