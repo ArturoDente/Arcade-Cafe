@@ -109,7 +109,7 @@ function AuthScreen() {
                 </button>
             </div>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.2
+                V. 1.3
             </p>
         </div>
     );
@@ -369,15 +369,19 @@ function MainScreen({ session }) {
 
     const handleBarCodeScanned = async (decodedText) => {
         setShowScanner(false);
-        setIsProcessingScan(true); // Attiva lo stato di processamento
+        setIsProcessingScan(true);
 
         const cabinatoId = parseInt(decodedText, 10);
         if (isNaN(cabinatoId)) {
             setNotification({ message: "QR non valido.", type: "error" });
-            setIsProcessingScan(false); // Disattiva lo stato di processamento
+            setIsProcessingScan(false);
             return;
         }
         try {
+            // CORREZIONE CRUCIALE: Controlla che i dati dell'associato siano caricati prima di procedere.
+            if (!associato) {
+                throw new Error("Dati utente non ancora caricati. Riprova.");
+            }
             if (!associato.abbonamento_attivo)
                 throw new Error("Abbonamento non attivo.");
             if (associato.tokens <= 0) throw new Error("Token esauriti.");
@@ -408,7 +412,7 @@ function MainScreen({ session }) {
                 type: "error",
             });
         } finally {
-            setIsProcessingScan(false); // Disattiva lo stato di processamento in ogni caso
+            setIsProcessingScan(false);
         }
     };
 
@@ -536,7 +540,7 @@ function MainScreen({ session }) {
                 Logout
             </button>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.2
+                V. 1.3
             </p>
         </div>
     );
