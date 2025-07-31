@@ -109,7 +109,7 @@ function AuthScreen() {
                 </button>
             </div>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.0
+                V. 1.1
             </p>
         </div>
     );
@@ -123,7 +123,6 @@ function ScannerComponent({ onScan, onCancel }) {
     const [error, setError] = useState("");
 
     useEffect(() => {
-        // Inizializza lo scanner solo una volta
         if (!codeReaderRef.current) {
             codeReaderRef.current = new BrowserQRCodeReader();
         }
@@ -132,8 +131,9 @@ function ScannerComponent({ onScan, onCancel }) {
 
         const startScan = async () => {
             try {
+                // CORREZIONE: listVideoInputDevices è un metodo statico della classe, non dell'istanza.
                 const videoInputDevices =
-                    await codeReader.listVideoInputDevices();
+                    await BrowserQRCodeReader.listVideoInputDevices();
                 if (videoInputDevices.length === 0) {
                     throw new Error("Nessuna fotocamera trovata.");
                 }
@@ -167,13 +167,12 @@ function ScannerComponent({ onScan, onCancel }) {
 
         startScan();
 
-        // Funzione di pulizia per fermare la fotocamera quando il componente viene smontato
         return () => {
             if (codeReader) {
                 codeReader.reset();
             }
         };
-    }, [onScan]);
+    }, [onScan, onCancel]);
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4">
@@ -524,7 +523,7 @@ function MainScreen({ session }) {
                 Logout
             </button>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.0
+                V. 1.1
             </p>
         </div>
     );
