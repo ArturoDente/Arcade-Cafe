@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Html5QrcodeScanner, Html5Qrcode } from "html5-qrcode";
+import { BrowserQRCodeReader } from "@zxing/browser";
 
 // --- Configurazione Supabase ---
 const supabaseUrl = "https://jtxghmwqskpwzmfrsyng.supabase.co";
@@ -108,7 +108,61 @@ function AuthScreen() {
           {loading ? "Registrazione..." : "Registrati"}
         </button>
       </div>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.5</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.7</p>
+    </div>
+  );
+}
+
+// --- Componente Scanner ---
+function ScannerComponent({ onScan, onCancel }) {
+  const videoRef = useRef(null);
+  const controlsRef = useRef(null);
+
+  useEffect(() => {
+    const codeReader = new BrowserQRCodeReader();
+
+    codeReader
+      .decodeFromConstraints(
+        { video: { facingMode: "environment" } },
+        videoRef.current,
+        (result, err) => {
+          if (result) {
+            onScan(result.getText());
+          }
+          if (err && !(err instanceof DOMException)) {
+            // Ignora errori comuni come "not found"
+            console.error(err);
+          }
+        },
+      )
+      .then((controls) => {
+        controlsRef.current = controls;
+      })
+      .catch((err) => {
+        console.error("Errore nell'avvio dello scanner:", err);
+        onCancel(); // Torna indietro se la fotocamera non si avvia
+      });
+
+    // Funzione di pulizia per fermare la fotocamera
+    return () => {
+      if (controlsRef.current) {
+        controlsRef.current.stop();
+      }
+    };
+  }, [onScan, onCancel]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4">
+      <h2 className="text-white text-2xl mb-4">Inquadra il QR Code</h2>
+      <div className="w-full max-w-sm">
+        <video ref={videoRef} className="w-full rounded-lg" />
+      </div>
+      <button
+        onClick={onCancel}
+        className="mt-4 px-6 py-2 bg-red-500 text-white font-bold rounded-lg"
+      >
+        Annulla
+      </button>
     </div>
   );
 }
@@ -124,7 +178,6 @@ function MainScreen({ session }) {
 
   const timerRef = useRef(null);
   const tokenConsumptionRef = useRef(null);
-  const scannerRef = useRef(null);
 
   const clearNotification = () => setNotification({ message: "", type: "" });
 
@@ -178,61 +231,6 @@ function MainScreen({ session }) {
       .subscribe();
     return () => supabase.removeChannel(associatoChannel);
   }, [session]);
-
-  useEffect(() => {
-    if (showScanner) {
-      const startScanner = async () => {
-        try {
-          const devices = await Html5Qrcode.getCameras();
-          let cameraId = null;
-          if (devices && devices.length) {
-            const backCamera = devices.find((device) =>
-              device.label.toLowerCase().includes("back"),
-            );
-            cameraId = backCamera ? backCamera.id : devices[0].id;
-          }
-
-          const config = {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            deviceId: cameraId ? { exact: cameraId } : undefined,
-          };
-
-          const onScanSuccess = (decodedText, decodedResult) => {
-            handleBarCodeScanned(decodedText);
-          };
-
-          const onScanFailure = (error) => {};
-
-          const html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader",
-            config,
-            false,
-          );
-          html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-          scannerRef.current = html5QrcodeScanner;
-        } catch (err) {
-          console.error("Errore nell'avvio dello scanner:", err);
-          setNotification({
-            message: "Impossibile avviare la fotocamera.",
-            type: "error",
-          });
-          setShowScanner(false);
-        }
-      };
-      startScanner();
-    }
-  }, [showScanner]);
-
-  const stopScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear().catch((error) => {
-        console.error("Errore nella pulizia dello scanner.", error);
-      });
-      scannerRef.current = null;
-    }
-    setShowScanner(false);
-  };
 
   const fetchAssociatoData = async () => {
     setLoading(true);
@@ -329,7 +327,7 @@ function MainScreen({ session }) {
   };
 
   const handleBarCodeScanned = async (decodedText) => {
-    stopScanner();
+    setShowScanner(false);
     const cabinatoId = parseInt(decodedText, 10);
     if (isNaN(cabinatoId)) {
       setNotification({ message: "QR non valido.", type: "error" });
@@ -397,16 +395,10 @@ function MainScreen({ session }) {
 
   if (showScanner) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4">
-        <h2 className="text-white text-2xl mb-4">Inquadra il QR Code</h2>
-        <div className="w-full max-w-sm" id="qr-reader"></div>
-        <button
-          onClick={stopScanner}
-          className="mt-4 px-6 py-2 bg-red-500 text-white font-bold rounded-lg"
-        >
-          Annulla
-        </button>
-      </div>
+      <ScannerComponent
+        onScan={handleBarCodeScanned}
+        onCancel={() => setShowScanner(false)}
+      />
     );
   }
 
@@ -476,7 +468,7 @@ function MainScreen({ session }) {
       >
         Logout
       </button>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.5</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.7</p>
     </div>
   );
 }

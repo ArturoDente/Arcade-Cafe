@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",
-    "@zxing/library": "^0.21.3",
-    "html5-qrcode": "^2.3.8"
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3"
   }
 }
