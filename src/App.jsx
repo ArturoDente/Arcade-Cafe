@@ -109,7 +109,7 @@ function AuthScreen() {
                 </button>
             </div>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.1
+                V. 1.2
             </p>
         </div>
     );
@@ -119,7 +119,7 @@ function AuthScreen() {
 function ScannerComponent({ onScan, onCancel }) {
     const videoRef = useRef(null);
     const codeReaderRef = useRef(null);
-    const [status, setStatus] = useState("Inizializzazione..."); // 'Inizializzazione...', 'Scansione', 'Errore'
+    const [status, setStatus] = useState("Inizializzazione...");
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -131,7 +131,6 @@ function ScannerComponent({ onScan, onCancel }) {
 
         const startScan = async () => {
             try {
-                // CORREZIONE: listVideoInputDevices è un metodo statico della classe, non dell'istanza.
                 const videoInputDevices =
                     await BrowserQRCodeReader.listVideoInputDevices();
                 if (videoInputDevices.length === 0) {
@@ -204,6 +203,7 @@ function ScannerComponent({ onScan, onCancel }) {
 function MainScreen({ session }) {
     const [associato, setAssociato] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isProcessingScan, setIsProcessingScan] = useState(false);
     const [gameSession, setGameSession] = useState(null);
     const [elapsedTime, setElapsedTime] = useState(0);
     const [showScanner, setShowScanner] = useState(false);
@@ -369,9 +369,12 @@ function MainScreen({ session }) {
 
     const handleBarCodeScanned = async (decodedText) => {
         setShowScanner(false);
+        setIsProcessingScan(true); // Attiva lo stato di processamento
+
         const cabinatoId = parseInt(decodedText, 10);
         if (isNaN(cabinatoId)) {
             setNotification({ message: "QR non valido.", type: "error" });
+            setIsProcessingScan(false); // Disattiva lo stato di processamento
             return;
         }
         try {
@@ -404,6 +407,8 @@ function MainScreen({ session }) {
                 message: `Prenotazione Fallita: ${error.message}`,
                 type: "error",
             });
+        } finally {
+            setIsProcessingScan(false); // Disattiva lo stato di processamento in ogni caso
         }
     };
 
@@ -439,6 +444,14 @@ function MainScreen({ session }) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
                 Caricamento...
+            </div>
+        );
+    }
+
+    if (isProcessingScan) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+                Processando scansione...
             </div>
         );
     }
@@ -523,7 +536,7 @@ function MainScreen({ session }) {
                 Logout
             </button>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.1
+                V. 1.2
             </p>
         </div>
     );
