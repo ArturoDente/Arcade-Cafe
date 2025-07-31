@@ -60,7 +60,8 @@ class ErrorBoundary extends React.Component {
 function Notification({ message, type, onClose }) {
     if (!message) return null;
 
-    const baseStyle = "p-4 rounded-md shadow-lg text-white mb-4";
+    const baseStyle =
+        "fixed top-5 left-1/2 -translate-x-1/2 z-50 p-4 rounded-md shadow-lg text-white";
     const typeStyle = type === "error" ? "bg-red-500" : "bg-green-500";
 
     return (
@@ -74,17 +75,14 @@ function Notification({ message, type, onClose }) {
 }
 
 // --- Schermata di Autenticazione ---
-function AuthScreen() {
+function AuthScreen({ setNotification }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [notification, setNotification] = useState({ message: "", type: "" });
-
-    const clearNotification = () => setNotification({ message: "", type: "" });
 
     async function handleLogin() {
         setLoading(true);
-        clearNotification();
+        setNotification({ message: "", type: "" });
         const { error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
@@ -98,7 +96,7 @@ function AuthScreen() {
 
     async function handleSignUp() {
         setLoading(true);
-        clearNotification();
+        setNotification({ message: "", type: "" });
         const { error } = await supabase.auth.signUp({
             email: email,
             password: password,
@@ -118,11 +116,6 @@ function AuthScreen() {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4 relative">
-            <Notification
-                message={notification.message}
-                type={notification.type}
-                onClose={clearNotification}
-            />
             <h1 className="text-5xl font-bold text-yellow-400 mb-8 font-mono">
                 Arcade Cafè
             </h1>
@@ -157,7 +150,7 @@ function AuthScreen() {
                 </button>
             </div>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.6
+                V. 1.7
             </p>
         </div>
     );
@@ -167,15 +160,12 @@ function AuthScreen() {
 function ScannerComponent({ onScan, onCancel }) {
     const videoRef = useRef(null);
     const controlsRef = useRef(null);
-    const [status, setStatus] = useState("Inizializzazione...");
-    const [error, setError] = useState("");
 
     useEffect(() => {
         const codeReader = new BrowserQRCodeReader();
 
         const startScan = async () => {
             try {
-                setStatus("Ricerca fotocamere...");
                 const videoInputDevices =
                     await BrowserQRCodeReader.listVideoInputDevices();
                 if (videoInputDevices.length === 0) {
@@ -190,31 +180,22 @@ function ScannerComponent({ onScan, onCancel }) {
                     selectedDeviceId = rearCamera.deviceId;
                 }
 
-                setStatus("Avvio scansione...");
-
-                // Salva i controlli restituiti dalla promise
                 controlsRef.current = await codeReader.decodeFromVideoDevice(
                     selectedDeviceId,
                     videoRef.current,
                     (result, err) => {
                         if (result) {
-                            // Non è necessario fermare i controlli qui, la funzione di pulizia lo farà
                             onScan(result.getText());
                         }
                     },
                 );
-
-                setStatus("Scansione attiva");
             } catch (err) {
-                console.error("ERRORE SCANNER:", err);
-                setError(`Errore fotocamera: ${err.name} - ${err.message}`);
-                setStatus("Errore");
+                onCancel(`Errore fotocamera: ${err.message}`);
             }
         };
 
         startScan();
 
-        // Funzione di pulizia per fermare la fotocamera
         return () => {
             if (controlsRef.current) {
                 controlsRef.current.stop();
@@ -226,20 +207,8 @@ function ScannerComponent({ onScan, onCancel }) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4">
             <h2 className="text-white text-2xl mb-4">Inquadra il QR Code</h2>
-            <div className="w-full max-w-sm bg-gray-800 flex items-center justify-center h-64 rounded-lg">
-                {status === "Errore" ? (
-                    <p className="text-red-500 text-center px-4 break-words">
-                        {error}
-                    </p>
-                ) : (
-                    <video
-                        ref={videoRef}
-                        className={`w-full rounded-lg ${status === "Scansione attiva" ? "block" : "hidden"}`}
-                    />
-                )}
-                {status !== "Scansione attiva" && status !== "Errore" && (
-                    <p className="text-white">{status}</p>
-                )}
+            <div className="w-full max-w-sm">
+                <video ref={videoRef} className="w-full rounded-lg" />
             </div>
             <button
                 onClick={() => onCancel()}
@@ -252,19 +221,16 @@ function ScannerComponent({ onScan, onCancel }) {
 }
 
 // --- Schermata Principale (Dashboard) ---
-function MainScreen({ session }) {
+function MainScreen({ session, setNotification }) {
     const [associato, setAssociato] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isProcessingScan, setIsProcessingScan] = useState(false);
     const [gameSession, setGameSession] = useState(null);
     const [elapsedTime, setElapsedTime] = useState(0);
     const [showScanner, setShowScanner] = useState(false);
-    const [notification, setNotification] = useState({ message: "", type: "" });
 
     const timerRef = useRef(null);
     const tokenConsumptionRef = useRef(null);
-
-    const clearNotification = () => setNotification({ message: "", type: "" });
 
     useEffect(() => {
         if (session) {
@@ -423,9 +389,22 @@ function MainScreen({ session }) {
         setShowScanner(false);
         setIsProcessingScan(true);
 
-        const cabinatoId = parseInt(decodedText, 10);
+        const trimmedText = decodedText ? decodedText.trim() : "";
+        if (!trimmedText) {
+            setNotification({
+                message: "QR vuoto o non leggibile.",
+                type: "error",
+            });
+            setIsProcessingScan(false);
+            return;
+        }
+
+        const cabinatoId = parseInt(trimmedText, 10);
         if (isNaN(cabinatoId)) {
-            setNotification({ message: "QR non valido.", type: "error" });
+            setNotification({
+                message: `QR non valido. Scansionato: "${trimmedText}"`,
+                type: "error",
+            });
             setIsProcessingScan(false);
             return;
         }
@@ -522,11 +501,6 @@ function MainScreen({ session }) {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-4 flex flex-col items-center relative">
-            <Notification
-                message={notification.message}
-                type={notification.type}
-                onClose={clearNotification}
-            />
             {gameSession ? (
                 <div className="w-full max-w-md text-center flex flex-col items-center justify-center flex-grow">
                     <p className="text-xl">Stai giocando a:</p>
@@ -591,7 +565,7 @@ function MainScreen({ session }) {
                 Logout
             </button>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.6
+                V. 1.7
             </p>
         </div>
     );
@@ -601,6 +575,14 @@ function MainScreen({ session }) {
 export default function App() {
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [notification, setNotification] = useState({ message: "", type: "" });
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setNotification({ message: "", type: "" });
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [notification]);
 
     useEffect(() => {
         const {
@@ -623,13 +605,24 @@ export default function App() {
         );
     }
 
-    if (!session) {
-        return <AuthScreen />;
-    } else {
-        return (
+    return (
+        <>
+            <Notification
+                message={notification.message}
+                type={notification.type}
+                onClose={() => setNotification({ message: "", type: "" })}
+            />
             <ErrorBoundary>
-                <MainScreen key={session.user.id} session={session} />
+                {!session ? (
+                    <AuthScreen setNotification={setNotification} />
+                ) : (
+                    <MainScreen
+                        key={session.user.id}
+                        session={session}
+                        setNotification={setNotification}
+                    />
+                )}
             </ErrorBoundary>
-        );
-    }
+        </>
+    );
 }
