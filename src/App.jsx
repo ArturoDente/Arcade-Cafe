@@ -108,7 +108,7 @@ function AuthScreen() {
           {loading ? "Registrazione..." : "Registrati"}
         </button>
       </div>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.7</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.8</p>
     </div>
   );
 }
@@ -117,6 +117,7 @@ function AuthScreen() {
 function ScannerComponent({ onScan, onCancel }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
+  const scannedRef = useRef(false); // Usiamo un ref per evitare re-render
 
   useEffect(() => {
     const codeReader = new BrowserQRCodeReader();
@@ -126,11 +127,13 @@ function ScannerComponent({ onScan, onCancel }) {
         { video: { facingMode: "environment" } },
         videoRef.current,
         (result, err) => {
-          if (result) {
+          // Se abbiamo un risultato VALIDO e non abbiamo ancora processato una scansione...
+          if (result && result.getText() && !scannedRef.current) {
+            scannedRef.current = true; // Blocca scansioni multiple
             onScan(result.getText());
           }
-          if (err && !(err instanceof DOMException)) {
-            // Ignora errori comuni come "not found"
+          // Ignora gli errori comuni di "not found" che avvengono tra i fotogrammi
+          if (err && !(err.name === "NotFoundException")) {
             console.error(err);
           }
         },
@@ -468,7 +471,7 @@ function MainScreen({ session }) {
       >
         Logout
       </button>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.7</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.8</p>
     </div>
   );
 }
