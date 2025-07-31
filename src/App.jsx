@@ -108,7 +108,7 @@ function AuthScreen() {
           {loading ? "Registrazione..." : "Registrati"}
         </button>
       </div>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.8</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.9</p>
     </div>
   );
 }
@@ -116,41 +116,45 @@ function AuthScreen() {
 // --- Componente Scanner ---
 function ScannerComponent({ onScan, onCancel }) {
   const videoRef = useRef(null);
-  const controlsRef = useRef(null);
-  const scannedRef = useRef(false); // Usiamo un ref per evitare re-render
+  const codeReaderRef = useRef(new BrowserQRCodeReader());
 
   useEffect(() => {
-    const codeReader = new BrowserQRCodeReader();
+    const startScan = async () => {
+      try {
+        const videoInputDevices =
+          await codeReaderRef.current.listVideoInputDevices();
+        let selectedDeviceId = videoInputDevices[0].deviceId;
+        const rearCamera = videoInputDevices.find((device) =>
+          device.label.toLowerCase().includes("back"),
+        );
+        if (rearCamera) {
+          selectedDeviceId = rearCamera.deviceId;
+        }
 
-    codeReader
-      .decodeFromConstraints(
-        { video: { facingMode: "environment" } },
-        videoRef.current,
-        (result, err) => {
-          // Se abbiamo un risultato VALIDO e non abbiamo ancora processato una scansione...
-          if (result && result.getText() && !scannedRef.current) {
-            scannedRef.current = true; // Blocca scansioni multiple
-            onScan(result.getText());
-          }
-          // Ignora gli errori comuni di "not found" che avvengono tra i fotogrammi
-          if (err && !(err.name === "NotFoundException")) {
-            console.error(err);
-          }
-        },
-      )
-      .then((controls) => {
-        controlsRef.current = controls;
-      })
-      .catch((err) => {
-        console.error("Errore nell'avvio dello scanner:", err);
-        onCancel(); // Torna indietro se la fotocamera non si avvia
-      });
-
-    // Funzione di pulizia per fermare la fotocamera
-    return () => {
-      if (controlsRef.current) {
-        controlsRef.current.stop();
+        const controls = await codeReaderRef.current.decodeFromVideoDevice(
+          selectedDeviceId,
+          videoRef.current,
+          (result, err, controls) => {
+            if (result) {
+              // Ferma lo stream video PRIMA di processare il risultato
+              controls.stop();
+              onScan(result.getText());
+            }
+          },
+        );
+      } catch (err) {
+        console.error("ERRORE SCANNER:", err);
+        onCancel(
+          "Impossibile avviare la fotocamera. Controlla i permessi del browser.",
+        );
       }
+    };
+
+    startScan();
+
+    // Funzione di pulizia
+    return () => {
+      codeReaderRef.current.reset();
     };
   }, [onScan, onCancel]);
 
@@ -161,7 +165,7 @@ function ScannerComponent({ onScan, onCancel }) {
         <video ref={videoRef} className="w-full rounded-lg" />
       </div>
       <button
-        onClick={onCancel}
+        onClick={() => onCancel()}
         className="mt-4 px-6 py-2 bg-red-500 text-white font-bold rounded-lg"
       >
         Annulla
@@ -377,6 +381,13 @@ function MainScreen({ session }) {
     }
   };
 
+  const handleCancelScan = (errorMessage) => {
+    if (errorMessage) {
+      setNotification({ message: errorMessage, type: "error" });
+    }
+    setShowScanner(false);
+  };
+
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600)
       .toString()
@@ -400,7 +411,7 @@ function MainScreen({ session }) {
     return (
       <ScannerComponent
         onScan={handleBarCodeScanned}
-        onCancel={() => setShowScanner(false)}
+        onCancel={handleCancelScan}
       />
     );
   }
@@ -471,7 +482,7 @@ function MainScreen({ session }) {
       >
         Logout
       </button>
-      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.8</p>
+      <p className="absolute bottom-2 right-2 text-xs text-gray-600">V. 0.9</p>
     </div>
   );
 }
