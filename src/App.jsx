@@ -9,7 +9,6 @@ const supabaseKey =
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // --- Componente Error Boundary ---
-// Questa è la nostra "rete di sicurezza" per catturare errori imprevisti.
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);
@@ -158,7 +157,7 @@ function AuthScreen() {
                 </button>
             </div>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.5
+                V. 1.6
             </p>
         </div>
     );
@@ -167,16 +166,12 @@ function AuthScreen() {
 // --- Componente Scanner ---
 function ScannerComponent({ onScan, onCancel }) {
     const videoRef = useRef(null);
-    const codeReaderRef = useRef(null);
+    const controlsRef = useRef(null);
     const [status, setStatus] = useState("Inizializzazione...");
     const [error, setError] = useState("");
 
     useEffect(() => {
-        if (!codeReaderRef.current) {
-            codeReaderRef.current = new BrowserQRCodeReader();
-        }
-
-        const codeReader = codeReaderRef.current;
+        const codeReader = new BrowserQRCodeReader();
 
         const startScan = async () => {
             try {
@@ -197,12 +192,13 @@ function ScannerComponent({ onScan, onCancel }) {
 
                 setStatus("Avvio scansione...");
 
-                await codeReader.decodeFromVideoDevice(
+                // Salva i controlli restituiti dalla promise
+                controlsRef.current = await codeReader.decodeFromVideoDevice(
                     selectedDeviceId,
                     videoRef.current,
-                    (result, err, controls) => {
+                    (result, err) => {
                         if (result) {
-                            controls.stop();
+                            // Non è necessario fermare i controlli qui, la funzione di pulizia lo farà
                             onScan(result.getText());
                         }
                     },
@@ -218,9 +214,11 @@ function ScannerComponent({ onScan, onCancel }) {
 
         startScan();
 
+        // Funzione di pulizia per fermare la fotocamera
         return () => {
-            if (codeReader) {
-                codeReader.reset();
+            if (controlsRef.current) {
+                controlsRef.current.stop();
+                controlsRef.current = null;
             }
         };
     }, [onScan, onCancel]);
@@ -593,7 +591,7 @@ function MainScreen({ session }) {
                 Logout
             </button>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.5
+                V. 1.6
             </p>
         </div>
     );
