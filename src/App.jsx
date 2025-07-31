@@ -150,7 +150,7 @@ function AuthScreen({ setNotification }) {
                 </button>
             </div>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.7
+                V. 1.8
             </p>
         </div>
     );
@@ -502,12 +502,12 @@ function MainScreen({ session, setNotification }) {
     return (
         <div className="min-h-screen bg-gray-900 text-white p-4 flex flex-col items-center relative">
             {gameSession ? (
-                <div className="w-full max-w-md text-center flex flex-col items-center justify-center flex-grow">
+                <div className="w-full max-w-md text-center flex flex-col items-center justify-center flex-grow px-2">
                     <p className="text-xl">Stai giocando a:</p>
                     <h2 className="text-4xl font-bold text-yellow-400 my-2">
                         {gameSession.cabinati.nome_gioco}
                     </h2>
-                    <p className="text-8xl font-mono my-6">
+                    <p className="text-7xl md:text-8xl font-mono my-6 break-all">
                         {formatTime(elapsedTime)}
                     </p>
                     <div className="text-2xl mb-8">
@@ -565,7 +565,7 @@ function MainScreen({ session, setNotification }) {
                 Logout
             </button>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.7
+                V. 1.8
             </p>
         </div>
     );
@@ -577,9 +577,19 @@ export default function App() {
     const [loading, setLoading] = useState(true);
     const [notification, setNotification] = useState({ message: "", type: "" });
 
+    // Aggiunge uno stile globale per lo sfondo
+    useEffect(() => {
+        document.body.style.backgroundColor = "#111827"; // Corrisponde a bg-gray-900
+        return () => {
+            document.body.style.backgroundColor = "";
+        };
+    }, []);
+
     useEffect(() => {
         const timer = setTimeout(() => {
-            setNotification({ message: "", type: "" });
+            if (notification.message) {
+                setNotification({ message: "", type: "" });
+            }
         }, 5000);
         return () => clearTimeout(timer);
     }, [notification]);
