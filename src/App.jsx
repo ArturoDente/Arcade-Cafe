@@ -8,6 +8,55 @@ const supabaseKey =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0eGdobXdxc2twd3ptZnJzeW5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3OTA5NDgsImV4cCI6MjA2OTM2Njk0OH0.pjbLXTq6WFfP-tjkffoVfaLT1jmUXpa9IaolKE_PNOw";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// --- Componente Error Boundary ---
+// Questa è la nostra "rete di sicurezza" per catturare errori imprevisti.
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error("Uncaught error:", error, errorInfo);
+        this.setState({ error: error, errorInfo: errorInfo });
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4">
+                    <h1 className="text-2xl text-red-500 font-bold mb-4">
+                        Oops! Qualcosa è andato storto.
+                    </h1>
+                    <div className="bg-gray-800 p-4 rounded-lg text-left w-full max-w-lg">
+                        <h2 className="text-lg text-yellow-400 mb-2">
+                            Dettagli Errore:
+                        </h2>
+                        <pre className="text-white text-sm whitespace-pre-wrap break-all">
+                            {this.state.error && this.state.error.toString()}
+                            <br />
+                            {this.state.errorInfo &&
+                                this.state.errorInfo.componentStack}
+                        </pre>
+                    </div>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="mt-4 px-6 py-2 bg-blue-500 text-white font-bold rounded-lg"
+                    >
+                        Ricarica la pagina
+                    </button>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
+
 // --- Componente Messaggio di Notifica ---
 function Notification({ message, type, onClose }) {
     if (!message) return null;
@@ -109,7 +158,7 @@ function AuthScreen() {
                 </button>
             </div>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.4
+                V. 1.5
             </p>
         </div>
     );
@@ -544,7 +593,7 @@ function MainScreen({ session }) {
                 Logout
             </button>
             <p className="absolute bottom-2 right-2 text-xs text-gray-600">
-                V. 1.4
+                V. 1.5
             </p>
         </div>
     );
@@ -579,6 +628,10 @@ export default function App() {
     if (!session) {
         return <AuthScreen />;
     } else {
-        return <MainScreen key={session.user.id} session={session} />;
+        return (
+            <ErrorBoundary>
+                <MainScreen key={session.user.id} session={session} />
+            </ErrorBoundary>
+        );
     }
 }
